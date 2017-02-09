@@ -4,7 +4,6 @@
             [re-frame.core :refer [subscribe dispatch dispatch-sync]]
             [re-frame.db :refer [app-db]]))
 
-(defonce Self (.-self (js/require "react-native-workers"))) ;; "self" is the worker thread
 (defonce subscriptions (atom {}))                           ;; store all subscriptions here
 (defonce tr (t/reader :json))                               ;; transit writer for converting json data to clj
 (defonce tw (t/writer :json))                               ;; transit writer for converting clj data to json
@@ -24,7 +23,8 @@
         message [operation args]
         transit-message (t/write tw message)]
     (when trace (.log js/console "WORKER: Trace: Sending results to MAIN" (str transit-message)))
-    (.postMessage Self transit-message)))
+    (.postMessage js/global transit-message)
+    ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Main -> Worker Functions
@@ -46,7 +46,7 @@
 ;;  Worker init and fn dispatch
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn on-message
+(defn ^:export on-message
   "Used for message dispatch with cljs-transit. Expects a vector with operation and args.
   Ex. [:subscribe [:hello]]"
   [transit-message]
@@ -64,7 +64,7 @@
   and send a message back to the main thread indicating when the worker is ready."
   []
   (enable-console-print!)                                   ;; enable console printing
-  (aset Self "onmessage" on-message)                        ;; listen for messages using the on-message fn
+  (aset js/global "onmessage" on-message)
   (let [ready-transit-m (t/write tw [:worker-ready])]
-    (.postMessage Self ready-transit-m)                    ;; Send a message to the main thread indicating the worker is ready
+    (.postMessage js/global ready-transit-m)                    ;; Send a message to the main thread indicating the worker is ready
     (.log js/console "WORKER: Ready")))
