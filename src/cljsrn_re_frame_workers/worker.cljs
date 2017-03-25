@@ -2,6 +2,7 @@
   (:require [cognitect.transit :as t]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch dispatch-sync]]
+            [re-frame.router :refer [event-queue]]
             [re-frame.db :refer [app-db]]))
 
 (defonce subscriptions (atom {}))                           ;; store all subscriptions here
@@ -17,12 +18,21 @@
   "Most communication with the main thread is forwarding reaction results.
   Wrap it up in a transit message and send it on!"
   [sub-v data-sub]
+  (.log js/console "in the beginning of send-reaction-results..") ;;xxx
   (let [operation :reaction-results
         args {:sub-v sub-v
               :data  @data-sub}
-        message [operation args]
-        transit-message (t/write tw message)]
-    (when trace (.log js/console "WORKER: Trace: Sending results to MAIN" (str transit-message)))
+        message (do
+                  (.log js/console "right before assigning message")
+                  [operation args])
+        transit-message (do
+                          (try
+                            (t/write tw message)
+                            (catch :default e
+                              (.log js/console (str "exception keys: " (pr-str e)))
+                              )))]
+    ;; (when trace (.log js/console "WORKER: Trace: Sending results to MAIN" (str transit-message)))
+    (.log js/console (str "WORKER: Sending results to Main " (pr-str transit-message))) ;; xxx
     (.postMessage js/global transit-message)
     ))
 
@@ -35,10 +45,11 @@
   store it in the subscriptions atom, and deref it in a reagent track!
   statement so all future results get forwarded back to the Main thread."
   [sub-v]
-  (.log js/console "WORKER: received subscription vector" (str sub-v))
+  (.log js/console (str "WORKER: received subscription vector" (pr-str sub-v))) ;xxx
   (when-not (contains? @subscriptions sub-v)
     (let [new-sub (subscribe sub-v)]
       (when trace (.log js/console "WORKER: Trace: Reusults = " @new-sub))
+      (.log js/console (str "WORKER: Results = " @new-sub)) ; xxx
       (swap! subscriptions assoc sub-v new-sub)
       (r/track! send-reaction-results sub-v new-sub))))
 
@@ -53,11 +64,13 @@
   (let [message (t/read tr transit-message)
         operation (first message)
         args (first (rest message))]
-    (.log js/console "WORKER: Message received:" (str operation args))
+    ;; (.log js/console "WORKER: Message received:" )
+    (.log js/console (str "WORKER: Message received: operation: " operation)) ;xxx
     (case operation
       :subscribe (receive-subscription args)
       :dispatch (dispatch args)
-      :dispatch-sync (dispatch-sync args))))
+      :dispatch-sync (dispatch-sync args)
+      )))
 
 (defn init-worker
   "Turn on console logging, tell the thread to listen for messages using the on-message fn
