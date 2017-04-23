@@ -33,9 +33,15 @@
 (defn subscribe [sub-v]
   (if @use-worker?
     (worker-utils/subscribe sub-v)
-    (reaction (->> @(re-frame.core/subscribe sub-v)
-                   (t/write tw)
-                   (t/read tr)))))
+    (reaction (try
+                (->> @(re-frame.core/subscribe sub-v)
+                     (t/write tw)
+                     (t/read tr))
+                (catch :default e
+                  (.log js/console (str "exception: " (pr-str e)))
+                  (.log js/console (str "exception: data: " (pr-str (.-data e))))
+                  (throw (js/Error. (str (pr-str e) " - " (pr-str (.-data e)))))
+                  )))))
 
 (defn init-worker [worker-file ready-fn]
   (reset! use-worker? true)

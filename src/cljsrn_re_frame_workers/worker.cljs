@@ -25,18 +25,16 @@
         message (do
                   (.log js/console "right before assigning message")
                   [operation args])
-        transit-message (do
-                          (try
-                            (t/write tw message)
-                            (catch :default e
-                              (.log js/console (str "exception: " (pr-str e)))
-                              (.log js/console (str "exception keys: " (pr-str (.keys js/Object e))))
-                              (.log js/console (str "exception: line: " (pr-str (.-line e))))
-                              (.log js/console (str "exception: column: " (pr-str (.-column e))))
-                              (.log js/console (str "exception: data: " (pr-str (.-data e))))
-
-                              ;; (.log js/console (str "problematic message: " message))
-                              )))]
+        transit-message (try
+                          (t/write tw message)
+                          (catch :default e
+                            (.log js/console (str "exception: " (pr-str e)))
+                            (.log js/console (str "exception keys: " (pr-str (.keys js/Object e))))
+                            (.log js/console (str "exception: line: " (pr-str (.-line e))))
+                            (.log js/console (str "exception: column: " (pr-str (.-column e))))
+                            (.log js/console (str "exception: data: " (pr-str (.-data e))))
+                            (throw (js/Error. (str (pr-str e) " - " (pr-str (.-data e)))))
+                            ))]
     ;; (when trace (.log js/console "WORKER: Trace: Sending results to MAIN" (str transit-message)))
     (.log js/console (str "WORKER: Sending results to Main " (pr-str transit-message))) ;; xxx
     (.postMessage js/global transit-message)
