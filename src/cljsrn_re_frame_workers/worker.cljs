@@ -29,7 +29,13 @@
                           (try
                             (t/write tw message)
                             (catch :default e
-                              (.log js/console (str "exception keys: " (pr-str e)))
+                              (.log js/console (str "exception: " (pr-str e)))
+                              (.log js/console (str "exception keys: " (pr-str (.keys js/Object e))))
+                              (.log js/console (str "exception: line: " (pr-str (.-line e))))
+                              (.log js/console (str "exception: column: " (pr-str (.-column e))))
+                              (.log js/console (str "exception: data: " (pr-str (.-data e))))
+
+                              ;; (.log js/console (str "problematic message: " message))
                               )))]
     ;; (when trace (.log js/console "WORKER: Trace: Sending results to MAIN" (str transit-message)))
     (.log js/console (str "WORKER: Sending results to Main " (pr-str transit-message))) ;; xxx
